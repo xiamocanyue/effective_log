@@ -1,3 +1,0 @@
-/home/zhu/桌面/linux/effective_log/build/CMakeFiles/test_mmap.dir
-/home/zhu/桌面/linux/effective_log/build/CMakeFiles/edit_cache.dir
-/home/zhu/桌面/linux/effective_log/build/CMakeFiles/rebuild_cache.dir
