@@ -1,12 +1,11 @@
 #include <filesystem>
 
-static constexpr uint32_t kMAGIC = 0xdeadbeef;
+static constexpr uint32_t kMagic = 0xdeadbeef;
 
 class MMapAux {
 public:
-
-typedef struct MMapHeader {
-    uint32_t magic = kMAGIC;
+struct MMapHeader {
+    uint32_t magic = kMagic;
     uint32_t size;
 };
 
@@ -24,9 +23,11 @@ typedef struct MMapHeader {
     size_t Size();
 
     //这里的new_size是要存储输入的大小，不包括header,确保payload达到new_size
-    void Reserve(size_t new_size);
+    bool Reserve(size_t new_size);
 
-    void Push(const void* data, size_t size);
+    ssize_t Push(const void* data, size_t data_size);
+
+    void Clear();
 
     bool Empty();
     //返回数据区的起始地址
@@ -36,8 +37,8 @@ private :
     void Init();
     size_t GetSetUpCapacity(size_t payload_size);
     MMapHeader* GetHeader();
-    void Unmmap();
-    void MapFile(size_t capacity);
+    bool Unmmap();
+    bool MapFile(size_t new_capacity);
 
 
 private:
