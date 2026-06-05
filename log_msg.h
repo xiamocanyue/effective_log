@@ -4,19 +4,17 @@
 
 namespace Logger{
 
-
-
 class LogMsg {
 public:
-    LogMsg(SourceLocationg source, LogLever lever, StringView msg);
-    LogMsg(LogLever lever, StringView msg);
+    LogMsg(SourceLocationg source, LogLevel level, StringView msg);
+    LogMsg(LogLevel level, StringView msg);
 
     LogMsg(const LogMsg& other) = default;
     LogMsg& operator=(const LogMsg& other) = default;
 
 private:
     SourceLocationg source_location_;
-    LogLever lever_;
+    LogLevel level_;
     StringView msg_;
 };
 }

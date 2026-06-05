@@ -20,7 +20,7 @@ using StringView = std::string_view;
 using MemoryBuf = std::string;
 
 
-enum class LogLever {
+enum class LogLevel {
     kTrace = LOGGER_LEVER_TRACE,
     kDebug = LOGGER_LEVER_DEBUG,
     kInfo = LOGGER_LEVER_INFO,

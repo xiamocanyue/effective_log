@@ -15,10 +15,6 @@ public:
         return &executor_;
     }
 
-    Executor::TaskRunnerTag AddRunner(Executor::ExecutorContext::TaskRunnerTag tag) {
-        return executor_.AddRunner(tag);
-    }
-
 
 
 private:
@@ -31,7 +27,7 @@ private:
 
 #define CONTEXT Context::GetInstance()
 #define EXECUTOR CONTEXT->GetExecutor()
-#define ADD_TASK_RUNNER(tag) CONTEXT->AddRunner(tag)
+#define ADD_TASK_RUNNER(tag) EXECUTOR->AddRunner(tag)
 #define POST_TASK(tag, task) EXECUTOR->PostTask(tag, task)
 #define POST_AND_RETURN(tag, task) EXECUTOR->PostTaskAndGetResult(tag, task)
 #define WAIT_TASK_IDLE(tag) EXECUTOR->PostTaskAndGetResult(tag, []() {})->wait()

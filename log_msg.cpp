@@ -2,9 +2,9 @@
 
 namespace Logger{
 
-LogMsg::LogMsg(SourceLocationg source, LogLever lever, StringView msg)
-        : source_location_(source), lever_(lever), msg_(msg) {}
+LogMsg::LogMsg(SourceLocationg source, LogLevel level, StringView msg)
+        : source_location_(source), level_(level), msg_(msg) {}
 
-LogMsg::LogMsg(LogLever lever, StringView msg) : LogMsg(SourceLocationg{}, lever, msg){}
+LogMsg::LogMsg(LogLevel level, StringView msg) : LogMsg(SourceLocationg{}, level, msg){}
 
 }
