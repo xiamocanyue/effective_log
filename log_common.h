@@ -34,7 +34,7 @@ enum class LogLevel {
 class SourceLocationg {
 public: 
     SourceLocationg() = default;
-    SourceLocationg(StringView file_name_in, int32_t line_in = 0, StringView func_name_in) 
+    SourceLocationg(StringView file_name_in, int32_t line_in, StringView func_name_in) 
             : file_name_(file_name_in), line_(line_in), func_name_(func_name_in) {
         
         if (!file_name_.empty()) {
@@ -42,7 +42,7 @@ public:
             if (index != StringView::npos) {
                 file_name_ = file_name_.substr(index + 1);
             } else {
-                index = file_name_.rfind('//');
+                index = file_name_.rfind("//");
                 if (index != StringView::npos) {
                     file_name_ = file_name_.substr(index + 1);
                 }
@@ -51,7 +51,6 @@ public:
 
     } 
 
-private:
     StringView file_name_;
     int32_t line_;
     StringView func_name_;

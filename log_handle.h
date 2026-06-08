@@ -6,7 +6,7 @@
 #include <atomic>
 
 #include <vector>
-#include <initializer_list>>
+#include <initializer_list>
 
 
 
@@ -28,7 +28,7 @@ public:
 
     void CreateLogMsg(SourceLocationg soucre, LogLevel level, StringView msg);
 
-private:
+protected:
     bool ShouldLog(LogLevel level) {
         return level > min_lever_ && !log_sinks_.empty();
     }

@@ -12,7 +12,7 @@ public:
     LogMsg(const LogMsg& other) = default;
     LogMsg& operator=(const LogMsg& other) = default;
 
-private:
+
     SourceLocationg source_location_;
     LogLevel level_;
     StringView msg_;

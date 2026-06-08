@@ -1,5 +1,12 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(TestMMap LANGUAGES CXX)
+#set(CMAKE_TOOLCHAIN_FILE "third_party/vcpkg/scripts/buildsystems/vcpkg.cmake")
 
-add_executable(test_mmap test_mmap.cpp mmap.cpp)
+project(FMT_TEXT LANGUAGES CXX)
+
+find_package(fmt CONFIG REQUIRED)
+
+### Temporarily disable fmt_test when fmt_test.cpp is missing
+# add_executable(fmt_test fmt_test.cpp)
+
+# target_link_libraries(fmt_test PRIVATE fmt::fmt)

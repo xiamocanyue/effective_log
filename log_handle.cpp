@@ -1,4 +1,5 @@
 #include "log_handle.h"
+#include "sinks/sink.h"
 
 
 namespace Logger{
@@ -31,7 +32,7 @@ void LogHandle::CreateLogMsg(SourceLocationg source, LogLevel level, StringView 
 
 void LogHandle::SendLogMsg(LogMsg& log_msg) {
     for (auto& sink : log_sinks_) {
-        sink->
+        sink->Log(log_msg);
     }
 }
 
