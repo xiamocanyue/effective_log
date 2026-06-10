@@ -1,6 +1,6 @@
 #include "executor.h"
 
-Executor::ExecutorContext::TaskRunnerTag Executor::ExecutorContext::GiveNewTag() {
+Executor::ExecutorContext::TaskRunnerTag Executor::ExecutorContext::GetNewTag() {
     while (true) {
         if (map_.find(tag_) == map_.end()) {
             return tag_;
@@ -12,28 +12,24 @@ Executor::ExecutorContext::TaskRunnerTag Executor::ExecutorContext::GiveNewTag()
 Executor::ExecutorContext::TaskRunnerTag Executor::ExecutorContext::AddRunner(Executor::ExecutorContext::TaskRunnerTag tag) {
     std::lock_guard<std::mutex> lock(mutex_);
     if (map_.find(tag) != map_.end()) {
-        tag = GiveNewTag();
+        tag = GetNewTag();
     }
-
     TaskRunnerPtr runner_ptr = std::make_unique<Runner>(1);
     bool runner_start = runner_ptr->Start();
     if (!runner_start) {
         return kFalseTag;
     }
     map_.insert({tag, std::move(runner_ptr)});
-
     return tag;
 }
 
 Executor::Runner* Executor::ExecutorContext::GetRunner(Executor::ExecutorContext::TaskRunnerTag tag) {
     Runner* runner_ptr;
-
     std::lock_guard<std::mutex> lock(mutex_);
     if (map_.find(tag) == map_.end()) {
         return nullptr;
     }
     runner_ptr = map_[tag].get();
-
     return runner_ptr;
 }
 
@@ -51,15 +47,11 @@ bool Executor::ExecutorTime::Start() {
         return true;
 
     }
-
     if (is_shutdown.load()) {
         return false;
     }
-
     is_running.store(true);
-
     time_thread.Start();
-
     auto func = [this]() {
         while (true) {
             std::unique_lock<std::mutex> lock(time_task_mutex_);
@@ -70,33 +62,26 @@ bool Executor::ExecutorTime::Start() {
             if (queue_.empty()) {
                 continue;
             }
-
             auto now_time_point = std::chrono::high_resolution_clock::now();
             TimeTask will_do_task = queue_.top();
             if (will_do_task.future_start_time > now_time_point) {
                 time_task_cv_.wait_until(lock, will_do_task.future_start_time);
                 continue;
             }
-
             queue_.pop();
-
             if (will_do_task.id != kNoRepeatId) {
                 if (repeat_id_set_.find(will_do_task.id) == repeat_id_set_.end()) {
                     continue;
                 }                
             }
             lock.unlock();
-
             will_do_task.task();
-
             CheckAndAddNext(will_do_task);
   
         }
     };
-
     lock.unlock();
     time_thread.RunTask(func);
-
     return true;
 }
 
@@ -152,11 +137,8 @@ Executor::ExecutorTime::RepeatId Executor::ExecutorTime::AddRepeatTimeTask(uint3
     if (is_shutdown.load()) {
         return kNoRepeatId;
     }
-
     TimeTask time_task = CreatRepeatTimeTask(repeat_count, delay_time, GetNewRepeatId(), task);
-
     repeat_id_set_.insert(time_task.id);
-    
     queue_.push(time_task);
     time_task_cv_.notify_one();
     return time_task.id;
@@ -172,12 +154,10 @@ void Executor::ExecutorTime::CheckAndAddNext(TimeTask task) {
     std::lock_guard<std::mutex> lock(time_task_mutex_);
     if (task.id != kNoRepeatId) {
         if (repeat_id_set_.find(task.id) != repeat_id_set_.end()) {
-
             if (task.repeat_count == 0) {
                 repeat_id_set_.erase(task.id);
                 return ;
             }
-
             TimeTask new_task = CreatRepeatTimeTask(task.repeat_count - 1, task.delay_time, task.id, task.task);
             queue_.push(new_task);
             time_task_cv_.notify_one();

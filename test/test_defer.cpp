@@ -1,5 +1,5 @@
 #include <iostream>
-#include "../defer.h"
+#include "defer.h"
 
 class Test {
 public:

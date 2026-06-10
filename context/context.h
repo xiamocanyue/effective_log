@@ -10,11 +10,9 @@ public:
     }
     Context(const Context& other) = delete;
     Context& operator=(const Context& other) = delete;
-
     Executor* GetExecutor() {
         return &executor_;
     }
-
 
 
 private:

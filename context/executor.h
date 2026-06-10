@@ -27,7 +27,7 @@ public:
         Runner* GetRunner(TaskRunnerTag tag);
 
     private:
-        TaskRunnerTag GiveNewTag();
+        TaskRunnerTag GetNewTag();
 
     private:
         std::mutex mutex_;

@@ -2,8 +2,8 @@
 
 #include <memory>
 
-#include "../log_msg.h"
-#include "../formatter/formatter.h"
+#include "log_msg.h"
+#include "formatter/formatter.h"
 
 namespace Logger {
 

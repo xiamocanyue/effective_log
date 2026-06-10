@@ -1,9 +1,9 @@
 #include <iostream>
 
-#include "../log_factory.h"
-#include "../sinks/console_sink.h"
-#include "../formatter/default_formatter.h"
-#include "../log_variadic_handle.h"
+#include "log_factory.h"
+#include "sinks/console_sink.h"
+#include "formatter/default_formatter.h"
+#include "log_variadic_handle.h"
 
 int main() {
     auto sink = std::make_shared<Logger::ConsoleSink>();
