@@ -22,7 +22,7 @@ LogLevel LogHandle::GetLevel() {
     return min_lever_;
 }
 
-void LogHandle::CreateLogMsg(SourceLocationg source, LogLevel level, StringView msg) {
+void LogHandle::CreateLogMsg(SourceLocation source, LogLevel level, StringView msg) {
     if (!ShouldLog(level)) {
         return;
     }

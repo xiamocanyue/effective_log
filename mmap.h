@@ -1,13 +1,14 @@
 #include <filesystem>
 
-static constexpr uint32_t kMagic = 0xdeadbeef;
-
 class MMapAux {
 public:
-struct MMapHeader {
-    uint32_t magic = kMagic;
-    uint32_t size;
-};
+    struct MMapHeader {
+        static constexpr uint32_t kMagic = 0xdeadbeef;
+        uint32_t magic;
+        uint32_t size;
+
+        MMapHeader() : magic(kMagic), size(0) {}
+    };
 
     using fpath = std::filesystem::path;
 
@@ -32,6 +33,8 @@ struct MMapHeader {
     bool Empty();
     //返回数据区的起始地址
     uint8_t* Data();
+
+    double GetRatio();
 
 private :
     void Init();

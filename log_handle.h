@@ -26,7 +26,7 @@ public:
     void SetLevel(LogLevel level);
     LogLevel GetLevel();
 
-    void CreateLogMsg(SourceLocationg soucre, LogLevel level, StringView msg);
+    void CreateLogMsg(SourceLocation soucre, LogLevel level, StringView msg);
 
 protected:
     bool ShouldLog(LogLevel level) {

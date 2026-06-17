@@ -1,18 +1,23 @@
 #pragma once
 
-#include "executor.h"
+#include "context/executor.h"
 
 class Context {
 public:
     static Context* GetInstance() {
-        static Context* instance = new Context;
-        return instance;
+        static Context instance;
+        return &instance;
     }
     Context(const Context& other) = delete;
     Context& operator=(const Context& other) = delete;
     Executor* GetExecutor() {
         return &executor_;
     }
+    Executor::TaskRunnerTag NewTaskRunner(Executor::TaskRunnerTag tag) {
+        return executor_.AddRunner(tag);
+    }
+    
+
 
 
 private:
@@ -32,3 +37,4 @@ private:
 #define POST_REPEATED_TASK(repeat_count, delay_time, tag, task) \
     EXECUTOR->PostRepeatDelayTask(repeat_count, delay_time, tag, task)
 #define CANCEL_REPEATED_TASK(id) EXECUTOR->CancelRepeatTimeTask(id)
+#define NEW_TASK_RUNNER(tag) CONTEXT->NewTaskRunner(tag)

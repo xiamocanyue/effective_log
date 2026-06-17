@@ -57,7 +57,7 @@ void MMapAux::Init() {
             capacity_ = 0;
             return ;
         }
-        GetHeader()->magic = kMagic;
+        GetHeader()->magic = MMapHeader::kMagic;
         GetHeader()->size = 0;
         return ;
     } 
@@ -76,12 +76,12 @@ void MMapAux::Init() {
         return ;
     }
         //虽然kmgic对上了，不过文件大小和实际的容量不匹配，初始化为一个空文件
-    if (header->magic == kMagic) {
+    if (header->magic == MMapHeader::kMagic) {
         if (header->size + sizeof(MMapHeader) > capacity_) {
             header->size = 0;
         }
     } else {
-        header->magic = kMagic;
+        header->magic = MMapHeader::kMagic;
         header->size = 0;
     }
  
@@ -204,4 +204,11 @@ bool MMapAux::MapFile(size_t new_capacity) {
     }
     capacity_ = new_capacity;
     return true;
+}
+
+double MMapAux::GetRatio() {
+    if (mmap_data_head_ == nullptr) {
+        return 0.0;
+    }
+    return static_cast<double>(Size() / (capacity_ - sizeof(MMapHeader)));
 }

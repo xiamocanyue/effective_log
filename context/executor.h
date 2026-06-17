@@ -1,5 +1,5 @@
 #pragma once
-#include "thread_pool.h"
+#include "context/thread_pool.h"
 
 #include <unordered_map>
 #include <queue>
@@ -25,8 +25,6 @@ public:
     
         TaskRunnerTag AddRunner(TaskRunnerTag tag);
         Runner* GetRunner(TaskRunnerTag tag);
-
-    private:
         TaskRunnerTag GetNewTag();
 
     private:

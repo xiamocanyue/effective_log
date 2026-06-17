@@ -31,10 +31,10 @@ enum class LogLevel {
 };
 
 
-class SourceLocationg {
+class SourceLocation {
 public: 
-    SourceLocationg() = default;
-    SourceLocationg(StringView file_name_in, int32_t line_in, StringView func_name_in) 
+    SourceLocation() = default;
+    SourceLocation(StringView file_name_in, int32_t line_in, StringView func_name_in) 
             : file_name_(file_name_in), line_(line_in), func_name_(func_name_in) {
         
         if (!file_name_.empty()) {

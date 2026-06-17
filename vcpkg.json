@@ -1,0 +1,11 @@
+{
+  "name": "effective-log",
+  "version-string": "0.1.0",
+  "dependencies": [
+    "fmt",
+    "zlib",
+    "zstd",
+    "protobuf",
+    "cryptopp"
+  ]
+}

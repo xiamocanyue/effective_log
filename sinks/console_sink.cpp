@@ -1,4 +1,4 @@
-#include "console_sink.h"
+#include "sinks/console_sink.h"
 
 namespace Logger {
 
