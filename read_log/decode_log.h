@@ -25,13 +25,18 @@ std::vector<char> ReadFile(std::string& file_path) {
     return buf;
 }
 
+void WriteDateToFile(const std::string& file_path, std::string& data) {
+    std::ofstream ofs(file_path, std::ios::binary | std::ios::app);
+    ofs.write(data.data(), data.size());
+}
+
 void DefaultDecodeFormat(EffectiveMsg& msg) {
     Logger::LogMsg log_msg(Logger::SourceLocation{msg.file_name(), msg.line(), msg.func_name()}, static_cast<Logger::LogLevel>(msg.level()), msg.log_info());
     Logger::DefaultFormatter defaultformat;
     Logger::MemoryBuf buf;
     defaultformat.Format(log_msg, &buf);
-    std::cout << buf << std::endl;
-
+    buf.append("\n");
+    WriteDateToFile("decode_log.txt", buf);
 }
 
 void DecodeItemData(const char* input, size_t data_size, Logger::Crypt::BaseCrypt* crypt, std::string& output_buf) {
@@ -89,8 +94,6 @@ void DecodeLog(std::string& inpute_file_path, std::string& private_key, std::str
         offset += sizeof(Logger::Detail::ChunkHead);
         DecodeChunkData(file_buf.data() + offset, chunk_head->size, std::string(chunk_head->pub_key), private_key, output_buf);
         offset += chunk_head->size;
+
     }
-
-
-
 }

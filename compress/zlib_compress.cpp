@@ -73,7 +73,7 @@ std::string ZlibCompression::DeCompress(void* data, size_t data_size) {
 
     std::string output;
     while (decompress_strm_->avail_in > 0) {
-        char buf[4096] = {};
+        char buf[4096] = {0};
         decompress_strm_->next_out = reinterpret_cast<Bytef*>(const_cast<char*>(buf));
         decompress_strm_->avail_out = sizeof(buf);
 

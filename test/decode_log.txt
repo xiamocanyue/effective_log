@@ -1,0 +1,2 @@
+[2026-06-18 14:34:16][warn] [test_basic_effective_log.cpp:77] [120990:120990]warn log for end to end test
+[2026-06-18 14:34:16][error] [test_basic_effective_log.cpp:78] [120990:120990]error log for end to end test

@@ -113,6 +113,11 @@ void TestEndToEndFlow() {
 int main() {
     std::cout << "=== test_basic_effective_log ===\n";
     TestEndToEndFlow();
-    std::cout << "=== done ===\n";
+    int arr[10] = {0};
+    for (int i = 0; i < 10; i++) {
+        std::cout << arr[i];
+    }
+    std::cout << arr[-1] << "cecc" << std::endl;
+
     return 0;
 }

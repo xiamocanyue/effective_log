@@ -26,6 +26,7 @@ EffectiveSink::EffectiveSink(Conf conf) : conf_(std::move(conf)) {
     compress_ = std::make_unique<Compress::ZstdCompression>();
     master_cache_ = std::make_unique<MMapAux>("master_cache");
     slave_cache_ = std::make_unique<MMapAux>("slave_cache");
+    Start();
 
     if (!slave_cache_->Empty()) {
         is_slave_free_.store(false);
@@ -42,20 +43,100 @@ EffectiveSink::EffectiveSink(Conf conf) : conf_(std::move(conf)) {
     POST_REPEATED_TASK(-1, conf_.passed_time_interval, task_runner_tag_, [this]() {EliminateTotalLogFileSize();});
 }
 
+EffectiveSink::~EffectiveSink() {
+    this->Flush();
+    Stop();
+    ofs_.close();    
+}
 
 bool EffectiveSink::NeedCacheToFile() {
     return master_cache_->GetRatio() > 0.8;
 }
 
 void EffectiveSink::Log(LogMsg& msg) {
+    if (is_stop_.load()) {
+        return ;
+    }
+    if (!is_running.load() || !is_accepting_.load()) {
+        return ;
+    }
+    std::lock_guard<std::mutex> lock(queue_mutex_);
+    if (!is_accepting_.load()) {
+        return ;
+    }
+    task_queue_.push_back(std::move(PendingLogMsg(msg)));
+    queue_cv_.notify_one();
+}
+
+void EffectiveSink::Start() {
+    if (is_running.load()) {
+        return ;
+    }
+    if (is_stop_.load()) {
+        return ;
+    }
+    is_running.store(true);
+    for (int i = 0; i < thread_count_.load(); i++) {
+        CreatAndAddThread();
+    }
+
+}
+
+void EffectiveSink::Stop() {
+    if (!is_running.load()) {
+        return ;
+    }
+    is_accepting_.store(false);
+    if (is_stop_.load()) {
+        return ;
+    }
+    this->Flush();
+    is_stop_.store(true);
+    queue_cv_.notify_all();
+    for (auto& thread : work_threads_) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+    work_threads_.clear();
+    is_running.store(false);
+}
+
+void EffectiveSink::CreatAndAddThread() {
+    auto func = [this]() {
+        while (true) {
+            PendingLogMsg task_msg;
+            {
+                std::unique_lock<std::mutex> lock(queue_mutex_);
+                queue_cv_.wait(lock, [this](){ return !task_queue_.empty() || is_stop_.load();});
+                if (task_queue_.empty() && is_stop_.load()) {
+                    break;
+                }
+                task_msg = task_queue_.front();
+                task_queue_.pop_front();
+                active_workers_.fetch_add(1);
+            }
+            ThreadWork(task_msg);
+            active_workers_.fetch_sub(1);
+            queue_cv_.notify_all();
+        }
+
+    };
+    
+    work_threads_.push_back(std::thread(func));
+}
+
+void EffectiveSink::ThreadWork(PendingLogMsg& pmsg) {
+    LogMsg msg(SourceLocation{pmsg.file_name, pmsg.line, pmsg.func_name}, pmsg.level, pmsg.message);
     static thread_local MemoryBuf input_buf;
     formatter_->Format(msg, &input_buf);
+    bool need_flush = false;
 
     {
+        std::lock_guard<std::mutex> lock(mutex_);        
         if (master_cache_->Empty()) {
             compress_->ResetStream();
         }
-        std::lock_guard<std::mutex> lock(mutex_);
         compress_output_buf_.resize(compress_->CompressBound(input_buf.size()));
         size_t compressed_size = compress_->Compress(input_buf.data(), input_buf.size(), compress_output_buf_.data(), compress_output_buf_.size());
         if (compressed_size == 0) {
@@ -71,15 +152,29 @@ void EffectiveSink::Log(LogMsg& msg) {
             return ;
         }
         WriteToCache(crypt_output_buf_.data(), crypt_output_buf_.size());
-    }
-    if (NeedCacheToFile()) {
-        if (is_slave_free_.load()) {
+        if (NeedCacheToFile() && is_slave_free_.load()) {
             is_slave_free_.store(false);
             SwapCache();
+            need_flush = true;
         }
+    }
+    if (need_flush) {
         PostSlaveTaskToWork();
     }
+
 }
+
+
+bool EffectiveSink::TrySwapCacheForFlush() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!is_slave_free_.load() || master_cache_->Empty()) {
+        return false;
+    }
+    is_slave_free_.store(false);
+    std::swap(master_cache_, slave_cache_);
+    return true;
+}
+
 
 void EffectiveSink::SwapCache() {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -103,16 +198,25 @@ void EffectiveSink::CacheToFile() {
         is_slave_free_.store(true);
         return ;
     }
-    auto log_file_path = GetLogPath();
+    std::lock_guard<std::mutex> lock(mutex_);
+    ofs_ = GetLogPath();
     Detail::ChunkHead chunk_head;
     chunk_head.size = slave_cache_->Size();
     memset(chunk_head.pub_key, 0, sizeof(chunk_head.pub_key));
     memcpy(chunk_head.pub_key, self_public_key_.data(), self_public_key_.size());
     
-    std::ofstream ofs(log_file_path, std::ios::binary | std::ios::app);
-    ofs.write(reinterpret_cast<char*>(&chunk_head), sizeof(chunk_head));
-    ofs.write(reinterpret_cast<char*>(slave_cache_->Data()), slave_cache_->Size());
-    ofs.close();
+    if (ofs_.is_open()) {
+        ofs_.write(reinterpret_cast<char*>(&chunk_head), sizeof(chunk_head));
+        ofs_.write(reinterpret_cast<char*>(slave_cache_->Data()), slave_cache_->Size());
+        ofs_.flush();
+    } else {
+        ofs_.open(log_file_path_, std::ios::binary | std::ios::app);
+        ofs_.write(reinterpret_cast<char*>(&chunk_head), sizeof(chunk_head));
+        ofs_.write(reinterpret_cast<char*>(slave_cache_->Data()), slave_cache_->Size());
+        ofs_.flush();
+    }
+    //优化频繁开关文件，在分片的时候才进行关闭文件
+    //ofs.close();
 
     slave_cache_->Clear();
     is_slave_free_.store(true);
@@ -123,14 +227,17 @@ void EffectiveSink::SetFormatter(std::unique_ptr<Formatter> formatter) {}
 
 void EffectiveSink::Flush() {
     LOG_INFO("*** flush ***");
-    PostSlaveTaskToWork();
-    WAIT_TASK_IDLE(task_runner_tag_);
-    if (is_slave_free_.load()) {
-        is_slave_free_.store(false);
-        SwapCache();
+    is_accepting_.store(false);
+    {
+        std::unique_lock<std::mutex> lock(queue_mutex_);
+        queue_cv_.wait(lock, [this]() {return task_queue_.empty() && active_workers_.load() == 0;});
     }
     PostSlaveTaskToWork();
     WAIT_TASK_IDLE(task_runner_tag_);
+    if (TrySwapCacheForFlush()) {
+        PostSlaveTaskToWork();
+        WAIT_TASK_IDLE(task_runner_tag_);
+    }
 }
 
 std::filesystem::path EffectiveSink::GetLogPath() {
@@ -150,6 +257,7 @@ std::filesystem::path EffectiveSink::GetLogPath() {
         if (file_size > single_size.count()) {
             auto file_name = GetTimePath();
             auto file_path = file_name.string() + ".log";
+            ofs_.close();
             if (std::filesystem::exists(file_path)) {
                 int index = 0;
                 for (auto& path : std::filesystem::directory_iterator(conf_.dir)) {
@@ -161,6 +269,7 @@ std::filesystem::path EffectiveSink::GetLogPath() {
             } else {
                 log_file_path_ = file_path;
             }
+            ofs_.open(log_file_path_, std::ios::binary | std::ios::app);
         }
     }
     LOG_INFO("EffectiveSink::GetLogPath = {}", log_file_path_.string());
@@ -195,9 +304,6 @@ void EffectiveSink::EliminateTotalLogFileSize() {
 void EffectiveSink::PostSlaveTaskToWork() {
     POST_TASK(task_runner_tag_, [this](){CacheToFile();});
 }
-
-
-
 
 
 }
