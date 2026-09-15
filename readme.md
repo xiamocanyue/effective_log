@@ -1,4 +1,4 @@
-# Effective Log
+# Effective Log 高效日志库
 
 ## 项目介绍
 
@@ -133,7 +133,8 @@ int main() {
     LOG_LOGGER_ERROR(handle, "log with explicit handle: {}", 100);
     EXT_LOG_ERROR("log with global handle: {}", 200);
 
-    sink->Flush();
+    sink->Flush();  // 可继续写入
+    sink->Stop();   // 程序结束时停止接收并完成最终刷盘
     return 0;
 }
 ```
@@ -150,6 +151,46 @@ int main() {
 
 ### 使用提示
 
-- 如果程序结束前需要确保日志落盘，主动调用 `sink->Flush()`
+- `sink->Flush()` 只刷新已接收的日志，调用后仍可继续记录；程序结束时调用 `sink->Stop()`
 - 如果需要自定义日志输出位置、文件名前缀或定时整理间隔，修改 `sinks/effective_sink.h:39` 中的 `Logger::EffectiveSink::Conf`
 - 如果只是做功能验证或性能对比，直接使用 `test/` 下的独立测试工程即可
+
+## 架构与数据流
+
+```mermaid
+flowchart LR
+  API[日志 API] --> Queue[异步队列]
+  Queue --> Worker[工作线程]
+  Worker --> Format[格式化]
+  Format --> Compress[Zstd 或 zlib 压缩]
+  Compress --> Encrypt[AES-CBC 加密]
+  Encrypt --> MMap[主/从 mmap 缓存]
+  MMap --> File[轮转日志文件]
+  File --> Decode[解码器]
+```
+
+```mermaid
+sequenceDiagram
+  participant App as 业务程序
+  participant Q as 异步队列
+  participant W as 工作线程
+  participant C as mmap 缓存
+  participant F as 日志文件
+  App->>Q: Log(日志消息)
+  Q-->>W: 取出日志
+  W->>W: 格式化、压缩、加密
+  W->>C: 追加带帧头的日志项
+  alt 达到缓存阈值或执行 Flush
+    W->>C: 交换主/从缓存
+    C->>F: 写入数据块并刷盘
+  end
+  App->>F: 结束时执行 Stop()
+  F-->>App: 已接收日志全部落盘
+```
+
+## 技术取舍与实测结果
+
+- **异步解耦与实时吞吐**：业务线程只负责入队，把格式化、压缩和加密移到工作线程；代价是队列和线程管理的固定开销。
+- **mmap 双缓存与恢复能力**：写入时使用 master/slave 交换，尽量减少写入线程与文件 IO 的互相阻塞；代价是需要处理异常退出后的缓存恢复。
+- **先压缩后加密**：实测的 4000 行样本中，压缩后加密输出为 512 字节，加密后再压缩为 712584 字节；说明密文不适合再压缩。当前 AES-CBC 方案保持不变，加密安全性后续单独处理。
+- **延迟与端到端吞吐分开报告**：现有 benchmark 测得入队约 118k logs/s，异步端到端约 10.8k logs/s，直接同步处理约 23.1k logs/s。这表明异步化降低了调用线程延迟，但不代表端到端吞吐一定更高。

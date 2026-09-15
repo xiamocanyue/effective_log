@@ -44,7 +44,6 @@ EffectiveSink::EffectiveSink(Conf conf) : conf_(std::move(conf)) {
 }
 
 EffectiveSink::~EffectiveSink() {
-    this->Flush();
     Stop();
     ofs_.close();    
 }
@@ -177,7 +176,8 @@ bool EffectiveSink::TrySwapCacheForFlush() {
 
 
 void EffectiveSink::SwapCache() {
-    std::lock_guard<std::mutex> lock(mutex_);
+    // Callers that write the active cache already hold mutex_. Keeping the
+    // exchange lock-free here avoids recursively locking a non-recursive mutex.
     std::swap(master_cache_, slave_cache_);
 }
 
@@ -227,7 +227,6 @@ void EffectiveSink::SetFormatter(std::unique_ptr<Formatter> formatter) {}
 
 void EffectiveSink::Flush() {
     LOG_INFO("*** flush ***");
-    is_accepting_.store(false);
     {
         std::unique_lock<std::mutex> lock(queue_mutex_);
         queue_cv_.wait(lock, [this]() {return task_queue_.empty() && active_workers_.load() == 0;});

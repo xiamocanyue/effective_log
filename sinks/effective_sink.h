@@ -62,6 +62,7 @@ public:
     void Log(LogMsg& msg) override;
     void SetFormatter(std::unique_ptr<Formatter> formatter) override;
     void Flush() override;
+    void Stop();
 
 private:
     void WriteToCache(void* data, size_t data_size);
@@ -75,7 +76,6 @@ private:
     void EliminateTotalLogFileSize();
 
     void Start();
-    void Stop();
     void CreatAndAddThread();
     void ThreadWork(PendingLogMsg& msg);
 

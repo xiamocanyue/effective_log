@@ -8,6 +8,7 @@ endif()
 project(EffectiveLog LANGUAGES CXX)
 
 option(EFFECTIVE_LOG_ENABLE_ASAN "Enable address sanitizer" OFF)
+option(EFFECTIVE_LOG_BUILD_TESTS "Build and register tests" ON)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -63,4 +64,9 @@ target_compile_features(effective_log_core PUBLIC cxx_std_17)
 if(EFFECTIVE_LOG_ENABLE_ASAN)
     target_compile_options(effective_log_core PUBLIC -fsanitize=address)
     target_link_options(effective_log_core PUBLIC -fsanitize=address)
+endif()
+
+if(EFFECTIVE_LOG_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(test)
 endif()

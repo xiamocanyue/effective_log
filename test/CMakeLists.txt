@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+if(NOT TARGET effective_log_core)
     if(NOT DEFINED CMAKE_TOOLCHAIN_FILE AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/vcpkg/scripts/buildsystems/vcpkg.cmake")
         set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/vcpkg/scripts/buildsystems/vcpkg.cmake"
             CACHE STRING "Vcpkg toolchain file")
@@ -66,6 +66,10 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     endif()
 endif()
 
+if(NOT TARGET effective_log_core)
+    message(FATAL_ERROR "effective_log_core target is required")
+endif()
+
 set(EFFECTIVE_LOG_TEST_INCLUDE_DIRS
     ${EFFECTIVE_LOG_ROOT}
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -77,6 +81,8 @@ add_executable(test_basic_effective_log
 
 target_include_directories(test_basic_effective_log PRIVATE ${EFFECTIVE_LOG_TEST_INCLUDE_DIRS})
 target_link_libraries(test_basic_effective_log PRIVATE effective_log::core)
+add_test(NAME basic-effective-log COMMAND test_basic_effective_log)
+set_tests_properties(basic-effective-log PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 add_executable(test_order_compress_crypt
     test_order_compress_crypt.cpp
@@ -84,6 +90,8 @@ add_executable(test_order_compress_crypt
 
 target_include_directories(test_order_compress_crypt PRIVATE ${EFFECTIVE_LOG_TEST_INCLUDE_DIRS})
 target_link_libraries(test_order_compress_crypt PRIVATE effective_log::core)
+add_test(NAME order-compress-crypt COMMAND test_order_compress_crypt)
+set_tests_properties(order-compress-crypt PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 add_executable(test_effective_sink_queue_benchmark
     test_effective_sink_queue_benchmark.cpp

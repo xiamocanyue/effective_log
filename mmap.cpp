@@ -210,5 +210,5 @@ double MMapAux::GetRatio() {
     if (mmap_data_head_ == nullptr) {
         return 0.0;
     }
-    return static_cast<double>(Size() / (capacity_ - sizeof(MMapHeader)));
+    return static_cast<double>(Size()) / static_cast<double>((capacity_ - sizeof(MMapHeader)));
 }

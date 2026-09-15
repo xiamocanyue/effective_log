@@ -59,7 +59,7 @@ static fs::path FindLatestLogFile(const fs::path& dir) {
 }
 
 // 写入日志 -> 落盘 -> 解密 -> 终端输出
-void TestEndToEndFlow() {
+bool TestEndToEndFlow() {
     const char* name = "TestEndToEndFlow";
     try {
         auto log_dir = PrepareTestDir();
@@ -79,16 +79,21 @@ void TestEndToEndFlow() {
 
         sink->Flush();
 
+        handle.CreateLogMsg(Logger::SourceLocation(__FILE__, __LINE__, __func__), Logger::LogLevel::kInfo, "log accepted after flush");
+        sink->Flush();
+        sink->Stop();
+        handle.CreateLogMsg(Logger::SourceLocation(__FILE__, __LINE__, __func__), Logger::LogLevel::kInfo, "log rejected after stop");
+
         auto log_path = FindLatestLogFile(log_dir);
         if (log_path.empty() || !fs::exists(log_path)) {
             PrintFail(name, "log file does not exist after Flush()");
-            return;
+            return false;
         }
 
         auto file_size = fs::file_size(log_path);
         if (file_size == 0) {
             PrintFail(name, "log file is empty after Flush()");
-            return;
+            return false;
         }
 
         std::cout << "  log file: " << log_path.string() << "\n";
@@ -105,19 +110,14 @@ void TestEndToEndFlow() {
         }
 
         PrintPass(name);
+        return true;
     } catch (const std::exception& e) {
         PrintFail(name, e.what());
+        return false;
     }
 }
 
 int main() {
     std::cout << "=== test_basic_effective_log ===\n";
-    TestEndToEndFlow();
-    int arr[10] = {0};
-    for (int i = 0; i < 10; i++) {
-        std::cout << arr[i];
-    }
-    std::cout << arr[-1] << "cecc" << std::endl;
-
-    return 0;
+    return TestEndToEndFlow() ? 0 : 1;
 }

@@ -1,1 +1,10 @@
 build/
+build-*/
+cmake-build-*/
+test/master_cache
+test/slave_cache
+test/test_output/
+test/decode_log.txt
+*.log
+.vscode/
+Resolve.md
