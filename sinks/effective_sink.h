@@ -9,8 +9,11 @@
 
 #include <mutex>
 #include <atomic>
+#include <condition_variable>
 #include <deque>
 #include <fstream>
+#include <functional>
+#include <vector>
 
 namespace Logger {
 namespace Detail {
@@ -43,6 +46,12 @@ public:
         std::chrono::minutes passed_time_interval;
         megabytes single_size{4};
         megabytes total_size{100};
+        int worker_threads{10};
+        size_t max_pending_bytes{0};
+        size_t critical_reserve_bytes{0};
+        size_t max_record_bytes{0};
+        size_t cache_payload_limit{0};
+        double cache_flush_ratio{0.0};
     };
     struct PendingLogMsg {
         LogLevel level;
@@ -50,11 +59,14 @@ public:
         int32_t line;
         std::string func_name;
         std::string message;
+        size_t accounted_bytes{0};
         
         PendingLogMsg(){}
         PendingLogMsg(LogMsg& msg) : level(msg.level_), file_name(msg.source_location_.file_name_),
                                     line(msg.source_location_.line_), func_name(msg.source_location_.func_name_),
-                                    message(msg.msg_) {}
+                                    message(msg.msg_) {
+            accounted_bytes = sizeof(PendingLogMsg) + file_name.size() + func_name.size() + message.size();
+        }
     };
 
     explicit EffectiveSink(Conf conf);
@@ -63,9 +75,12 @@ public:
     void SetFormatter(std::unique_ptr<Formatter> formatter) override;
     void Flush() override;
     void Stop();
+    void SetCacheWriteHookForTest(std::function<void()> hook);
 
 private:
-    void WriteToCache(void* data, size_t data_size);
+    friend struct EffectiveSinkTestAccess;
+
+    MMapAux::AppendResult WriteToCache(void* data, size_t data_size);
     bool NeedCacheToFile();
     bool TrySwapCacheForFlush();
     void CacheToFile();
@@ -78,6 +93,10 @@ private:
     void Start();
     void CreatAndAddThread();
     void ThreadWork(PendingLogMsg& msg);
+    bool IsCritical(LogLevel level) const;
+    bool IsAcceptedLevel(LogLevel level) const;
+    bool SetCacheBackpressureIfSlaveBusy();
+    void ClearCacheBackpressure();
 
 
 private:
@@ -89,7 +108,7 @@ private:
     std::string self_public_key_;
     std::string compress_output_buf_;
     std::string crypt_output_buf_;
-    std::atomic<bool> is_slave_free_{true};
+    bool is_slave_free_{true};
     std::mutex mutex_;
     Conf conf_;
     Executor::TaskRunnerTag task_runner_tag_;
@@ -100,11 +119,20 @@ private:
     std::mutex queue_mutex_;
     std::vector<std::thread> work_threads_;
     std::condition_variable queue_cv_;
+    std::condition_variable flush_cv_;
     std::atomic<bool> is_stop_{false};
     std::atomic<bool> is_accepting_{true};
     std::atomic<bool> is_running{false};
-    std::atomic<int> active_workers_{0};
-    std::atomic<int> thread_count_{10};
+    bool encoder_busy_{false};
+    bool cache_backpressure_{false};
+    int active_workers_{0};
+    bool worker_wakeup_pending_{false};
+
+    size_t pending_bytes_{0};
+    size_t in_flight_bytes_{0};
+    size_t cache_flush_threshold_bytes_{0};
+
+    std::function<void()> cache_write_hook_for_test_;
 };
 
 
